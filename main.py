@@ -24,7 +24,7 @@ RTSP = "rtsp://" + args.acc + ":" + args.pw + "@" + args.addr
 MODEL_PATH = './my_model/my_model.pt' # temporary
 
 model = f.get_model(MODEL_PATH)
-cap = f.get_stream(RTSP, args.width, args.height)
+cap = f.get_stream(RTSP)
 
 # Display stream until break (q key) is pressed
 while True:
@@ -36,7 +36,7 @@ while True:
     # Run YOLO inference in tracking mode. See kwargs for additional args
     results = model.track(source=[frame], persist=True, conf=0.3, batch=5, mode="track")  # synchronous
 
-    annotated_frame = f.rescale_frame(results[0].plot())
+    annotated_frame = f.rescale_frame(results[0].plot(), args.width, args.height)
 
     cv2.imshow("RTSP Stream", annotated_frame)
 
