@@ -32,8 +32,13 @@ while image_count < int(args.count):
 
     # Skip 10 frames
     while skip != 10:
-        ret, frame = cap.read()
-        frame = f.rescale_frame(frame, 640, 480)
+        try:
+            ret, frame = cap.read()
+            frame = f.rescale_frame(frame, 640, 480)
+        except Exception as e:
+            print(f"Issue encountered:{e}. Continuing program")
+            continue
+
         print("Skip count", skip)
         skip = skip + 1
         time.sleep(1)
