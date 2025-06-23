@@ -21,7 +21,7 @@ args = parser.parse_args() # Parse arguments received in command line
 RTSP = "rtsp://" + args.acc + ":" + args.pw + "@" + args.addr
 
 # Model
-MODEL_PATH = './my_model/my_model.pt' # temporary
+MODEL_PATH = './my_model_v2/my_model.pt' # temporary
 
 model = f.get_model(MODEL_PATH)
 cap = f.get_stream(RTSP)
