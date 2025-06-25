@@ -13,6 +13,7 @@ parser = argparse.ArgumentParser() # Declare parser
 parser.add_argument('--acc', help='CCTV Account Name', required=True)
 parser.add_argument('--pw', help='CCTV Password', required=True)
 parser.add_argument('--addr', help='IP Address', required=True)
+parser.add_argument('--model', help='Model to be used [1] v1, [2] v2 ...', default=2)
 parser.add_argument('--width', help='Width to be displayed', default=640)
 parser.add_argument('--height', help='Height to be displayed', default=480)
 args = parser.parse_args() # Parse arguments received in command line
@@ -21,7 +22,7 @@ args = parser.parse_args() # Parse arguments received in command line
 RTSP = "rtsp://" + args.acc + ":" + args.pw + "@" + args.addr
 
 # Model
-MODEL_PATH = './my_model_v2/my_model.pt' # temporary
+MODEL_PATH = f'./my_model_v{args.model}/my_model.pt' # temporary
 
 model = f.get_model(MODEL_PATH)
 cap = f.get_stream(RTSP)
