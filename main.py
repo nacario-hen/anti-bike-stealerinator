@@ -7,39 +7,46 @@ import time
 import functions as f
 from ultralytics import YOLO
 from datetime import datetime
+from playsound import playsound
 
-# ARGS
-parser = argparse.ArgumentParser() # Declare parser
-parser.add_argument('--acc', help='CCTV Account Name', required=True)
-parser.add_argument('--pw', help='CCTV Password', required=True)
-parser.add_argument('--addr', help='IP Address', required=True)
-parser.add_argument('--model', help='Model to be used [1] v1, [2] v2 ...', default=2)
-parser.add_argument('--width', help='Width to be displayed', default=640)
-parser.add_argument('--height', help='Height to be displayed', default=480)
-args = parser.parse_args() # Parse arguments received in command line
-
-# CONSTANTS
+args = f.get_parser(argparse.ArgumentParser())
 RTSP = "rtsp://" + args.acc + ":" + args.pw + "@" + args.addr
+MODEL_PATH = f'./my_model_v{args.model}/my_model.pt' # temporary. Remove args model if final true model is achieved/acquired
 
-# Model
-MODEL_PATH = f'./my_model_v{args.model}/my_model.pt' # temporary
-
-model = f.get_model(MODEL_PATH)
 cap = f.get_stream(RTSP)
+model = f.get_model(MODEL_PATH)
+roi = f.select_area(cap, args)
 
 # Display stream until break (q key) is pressed
 while True:
-    ret, frame = cap.read()
-    if not ret:
-        print("Error: Could not read frame.")
-        break
 
+    ret, main_frame = f.read_stream(cap)
+    main_frame = f.rescale_frame(main_frame, args.width, args.height)
     # Run YOLO inference in tracking mode. See kwargs for additional args
-    results = model.track(source=[frame], persist=True, conf=0.3, batch=5, mode="track")  # synchronous
+    results = model.track(source=[main_frame], persist=True, conf=0.3, batch=1, mode="track")  # synchronous
 
-    annotated_frame = f.rescale_frame(results[0].plot(), args.width, args.height)
+    ret, alert_frame = f.read_stream(cap)
 
-    cv2.imshow("RTSP Stream", annotated_frame)
+    cropped_stream = f.rescale_frame(alert_frame, args.width, args.height)
+    cropped_stream = cropped_stream[int(roi[1]):int(roi[1]+roi[3]), 
+                                    int(roi[0]):int(roi[0]+roi[2])]
+    alert_results = model.predict(source=[cropped_stream], stream=False)
+
+    cv2.imshow(f"{args.acc}", results[0].plot())
+    cv2.imshow("Cropped Stream", alert_results[0].plot())
+
+    for results in alert_results:
+        for box in results.boxes:
+            confidence = box.conf[0]
+            class_id = box.cls[0]
+            class_name = results.names[int(class_id)]
+
+            if class_name == 'Person':
+                if confidence > 0.5:
+                    try:
+                        playsound('./audio/Ding_sound.mp3')
+                    except:
+                        print("Can't play sound")
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
