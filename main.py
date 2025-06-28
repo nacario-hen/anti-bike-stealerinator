@@ -25,10 +25,7 @@ while True:
     # Run YOLO inference in tracking mode. See kwargs for additional args
     results = model.track(source=[main_frame], persist=True, conf=0.3, batch=1, mode="track")  # synchronous
 
-    ret, alert_frame = f.read_stream(cap)
-
-    cropped_stream = f.rescale_frame(alert_frame, args.width, args.height)
-    cropped_stream = cropped_stream[int(roi[1]):int(roi[1]+roi[3]), 
+    cropped_stream = main_frame[int(roi[1]):int(roi[1]+roi[3]), 
                                     int(roi[0]):int(roi[0]+roi[2])]
     alert_results = model.predict(source=[cropped_stream], stream=False)
 
