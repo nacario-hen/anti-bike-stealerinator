@@ -33,14 +33,14 @@ def main():
         ret, main_frame = f.read_stream(cap)
         main_frame = f.rescale_frame(main_frame, args.width, args.height)
         # Run YOLO inference in tracking mode. See kwargs for additional args
-        track_results = model.track(source=[main_frame], persist=True, conf=0.3, batch=1, mode="track")  # synchronous
+        track_results = model.track(source=[main_frame], persist=True, conf=0.5, batch=5, mode="track")  # synchronous
 
         cropped_stream = main_frame[int(roi[1]):int(roi[1]+roi[3]), 
-                                        int(roi[0]):int(roi[0]+roi[2])]
+                                    int(roi[0]):int(roi[0]+roi[2])]
         alert_results = model.predict(source=[cropped_stream], stream=False)
-
+        
         cv2.imshow(f"{args.acc}", track_results[0].plot())
-        # cv2.imshow("Cropped Stream", alert_results[0].plot()) # Uncomment if you want to see the selected area
+        cv2.imshow("Cropped Stream", alert_results[0].plot()) # Uncomment if you want to see the selected area
 
         global last_action_time
         with action_lock:
@@ -53,11 +53,12 @@ def main():
                         class_name = results.names[int(class_id)]
 
                         if class_name == 'Person':
-                            last_action_time = current_time
-                            try:
-                                threading.Thread(target=play_sound, daemon=True).start()
-                            except:
-                                print("Can't play sound")
+                            if confidence > 0.3:
+                                last_action_time = current_time
+                                try:
+                                    threading.Thread(target=play_sound, daemon=True).start()
+                                except:
+                                    print("Can't play sound")
 
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -70,6 +71,7 @@ if __name__ == '__main__':
     action_lock = threading.Lock()
     last_action_time = 0
     interval = 5  # seconds
+
     main()
 
 # might be needed in the future
