@@ -3,53 +3,74 @@ import sys
 import argparse
 import cv2
 import numpy
+import pygame
 import time
+import threading
 import functions as f
 from ultralytics import YOLO
 from datetime import datetime
-from playsound import playsound
 
-args = f.get_parser(argparse.ArgumentParser())
-RTSP = "rtsp://" + args.acc + ":" + args.pw + "@" + args.addr
-MODEL_PATH = f'./my_model_v{args.model}/my_model.pt' # temporary. Remove args model if final true model is achieved/acquired
+def play_sound():
+    pygame.mixer.init()
+    pygame.mixer.music.load("audio/Ding_sound.mp3")
+    pygame.mixer.music.play()
 
-cap = f.get_stream(RTSP)
-model = f.get_model(MODEL_PATH)
-roi = f.select_area(cap, args)
+    while pygame.mixer.music.get_busy():
+        pygame.time.Clock().tick(10)
 
-# Display stream until break (q key) is pressed
-while True:
+def main():
+    args = f.get_parser(argparse.ArgumentParser())
+    RTSP = "rtsp://" + args.acc + ":" + args.pw + "@" + args.addr
+    MODEL_PATH = f'./my_model_v{args.model}/my_model.pt' # temporary. Remove args model if final true model is achieved/acquired
 
-    ret, main_frame = f.read_stream(cap)
-    main_frame = f.rescale_frame(main_frame, args.width, args.height)
-    # Run YOLO inference in tracking mode. See kwargs for additional args
-    results = model.track(source=[main_frame], persist=True, conf=0.3, batch=1, mode="track")  # synchronous
+    cap = f.get_stream(RTSP)
+    model = f.get_model(MODEL_PATH)
+    roi = f.select_area(cap, args)
 
-    cropped_stream = main_frame[int(roi[1]):int(roi[1]+roi[3]), 
-                                    int(roi[0]):int(roi[0]+roi[2])]
-    alert_results = model.predict(source=[cropped_stream], stream=False)
+    # Display stream until break (q key) is pressed
+    while True:
 
-    cv2.imshow(f"{args.acc}", results[0].plot())
-    cv2.imshow("Cropped Stream", alert_results[0].plot())
+        ret, main_frame = f.read_stream(cap)
+        main_frame = f.rescale_frame(main_frame, args.width, args.height)
+        # Run YOLO inference in tracking mode. See kwargs for additional args
+        track_results = model.track(source=[main_frame], persist=True, conf=0.3, batch=1, mode="track")  # synchronous
 
-    for results in alert_results:
-        for box in results.boxes:
-            confidence = box.conf[0]
-            class_id = box.cls[0]
-            class_name = results.names[int(class_id)]
+        cropped_stream = main_frame[int(roi[1]):int(roi[1]+roi[3]), 
+                                        int(roi[0]):int(roi[0]+roi[2])]
+        alert_results = model.predict(source=[cropped_stream], stream=False)
 
-            if class_name == 'Person':
-                if confidence > 0.5:
-                    try:
-                        playsound('./audio/Ding_sound.mp3')
-                    except:
-                        print("Can't play sound")
+        cv2.imshow(f"{args.acc}", track_results[0].plot())
+        # cv2.imshow("Cropped Stream", alert_results[0].plot()) # Uncomment if you want to see the selected area
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+        global last_action_time
+        with action_lock:
+            current_time = time.time()
+            if current_time - last_action_time >= interval:
+                for results in alert_results:
+                    for box in results.boxes:
+                        confidence = box.conf[0]
+                        class_id = box.cls[0]
+                        class_name = results.names[int(class_id)]
 
-cap.release()
-cv2.destroyAllWindows()
+                        if class_name == 'Person':
+                            last_action_time = current_time
+                            try:
+                                threading.Thread(target=play_sound, daemon=True).start()
+                            except:
+                                print("Can't play sound")
+
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+if __name__ == '__main__':
+    action_lock = threading.Lock()
+    last_action_time = 0
+    interval = 5  # seconds
+    main()
 
 # might be needed in the future
 

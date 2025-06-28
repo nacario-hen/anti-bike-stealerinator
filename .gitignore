@@ -1,3 +1,5 @@
 /Lib
 /dataset*
 /audio
+/test.py
+/roi.txt
