@@ -2,8 +2,13 @@ import os
 import cv2
 import sys
 import time
+import threading
 import argparse
 import functions as f
+
+action_lock = threading.Lock()
+last_action_time = 0
+interval = 5  # seconds
 
 # Args
 parser = argparse.ArgumentParser()
@@ -29,24 +34,18 @@ except:
     sys.exit("Can't read stream")
 
 while image_count < int(args.count):
+    try:
+        ret, frame = cap.read()
+        frame = f.rescale_frame(frame, 640, 480)
+    except Exception as e:
+        print(f"Issue encountered:{e}. Continuing program")
 
-    # Skip 10 frames
-    while skip != 10:
-        try:
-            ret, frame = cap.read()
-            frame = f.rescale_frame(frame, 640, 480)
-        except Exception as e:
-            print(f"Issue encountered:{e}. Continuing program")
-            continue
-
-        print("Skip count", skip)
-        skip = skip + 1
-        time.sleep(1)
-
-    cv2.imwrite(os.path.join(local_path, (str(args.prefix) + str(image_count) + ".png")), frame)
-    print("Added",args.path,args.prefix,image_count, ".png")
-
-    image_count = image_count + 1
-    skip = 0
-
+    with action_lock:
+        current_time = time.time()
+        if current_time - last_action_time >= interval:
+            cv2.imwrite(os.path.join(local_path, (str(args.prefix) + str(image_count) + ".png")), frame)
+            print("Added",args.path,args.prefix,image_count, ".png")
+            last_action_time = current_time
+            image_count = image_count + 1
+            
 print("Finished gathering dataset. Closing program")
