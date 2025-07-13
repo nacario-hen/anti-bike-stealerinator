@@ -42,27 +42,33 @@ def main():
         cv2.imshow(f"{args.acc}", track_results[0].plot())
         cv2.imshow("Cropped Stream", alert_results[0].plot()) # Uncomment if you want to see the selected area
 
-        global last_action_time
-        with action_lock:
-            current_time = time.time()
-            if current_time - last_action_time >= interval:
-                for results in alert_results:
-                    for box in results.boxes:
-                        confidence = box.conf[0]
-                        class_id = box.cls[0]
-                        class_name = results.names[int(class_id)]
+        global sound_bool
 
-                        if class_name == 'Person':
-                            if confidence > 0.3:
-                                last_action_time = current_time
-                                try:
-                                    threading.Thread(target=play_sound, daemon=True).start()
-                                except:
-                                    print("Can't play sound")
+        if sound_bool == True:
+            global last_action_time
+            with action_lock:
+                current_time = time.time()
+                if current_time - last_action_time >= interval:
+                    for results in alert_results:
+                        for box in results.boxes:
+                            confidence = box.conf[0]
+                            class_id = box.cls[0]
+                            class_name = results.names[int(class_id)]
 
+                            if class_name == 'Person':
+                                if confidence > 0.3:
+                                    last_action_time = current_time
+                                    try:
+                                        threading.Thread(target=play_sound, daemon=True).start()
+                                    except:
+                                        print("Can't play sound")
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord('q'):
             break
+        elif key == ord('m'):
+            sound_bool = not sound_bool
+
 
     cap.release()
     cv2.destroyAllWindows()
@@ -71,7 +77,7 @@ if __name__ == '__main__':
     action_lock = threading.Lock()
     last_action_time = 0
     interval = 5  # seconds
-
+    sound_bool = True
     main()
 
 # might be needed in the future
